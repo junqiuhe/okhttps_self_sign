@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">okhttps_self_sign</string>
+
+    <string name="empty_text">没有您想要的内容哦!!!</string>
+    <string name="network_error">网络连接异常\n请检查您的Wi-Fi和手机网络是否正常</string>
+    <string name="network_error_retry_text">重新加载</string>
+
+</resources>
