@@ -3,6 +3,7 @@ package com.jackh.okhttps.self.sign.webview;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -10,6 +11,7 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -22,7 +24,16 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.jackh.okhttps.self.sign.R;
+import com.jackh.okhttps.self.sign.utils.OkHttpUtils;
 import com.jackh.okhttps.self.sign.widget.CustomStateView;
+
+import java.io.IOException;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * Project Name：okhttps_self_sign
@@ -36,7 +47,7 @@ public class WebViewFragment extends Fragment {
     private CustomStateView stateView;
     private WebView webView;
 
-    static WebViewFragment newInstance(String url){
+    static WebViewFragment newInstance(String url) {
         Bundle params = new Bundle();
         params.putString(WebViewActivity.URL, url);
 
@@ -50,7 +61,7 @@ public class WebViewFragment extends Fragment {
     @Override
     public void onAttach(@NonNull Context context) {
         super.onAttach(context);
-        if(context instanceof WebViewListener){
+        if (context instanceof WebViewListener) {
             mWebViewListener = (WebViewListener) context;
         }
     }
@@ -75,12 +86,12 @@ public class WebViewFragment extends Fragment {
             @Override
             public void onReceivedTitle(WebView view, String title) {
                 super.onReceivedTitle(view, title);
-                if(mWebViewListener != null){
+                if (mWebViewListener != null) {
                     mWebViewListener.updateTitle(title);
                 }
             }
         });
-        webView.setWebViewClient(new CustomWebViewClient(getContext(), mUrl, new Listener() {
+        webView.setWebViewClient(new SafeWebViewClient(getContext(), mUrl, new Listener() {
             @Override
             public void onLoading() {
                 stateView.showLoading();
@@ -100,10 +111,21 @@ public class WebViewFragment extends Fragment {
         WebSettings settings = webView.getSettings();
 
         settings.setJavaScriptEnabled(true);
-        settings.setSupportZoom(true);
-        settings.setBuiltInZoomControls(false);
-        settings.setSavePassword(false);
 
+        /**
+         * 支持缩放以及自适配屏幕
+         */
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
+        } else {
+            settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+        }
+        settings.setLoadWithOverviewMode(true);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setUseWideViewPort(true);
+
+        settings.setSavePassword(false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             //适配5.0不允许http和https混合使用情况
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
@@ -130,13 +152,7 @@ public class WebViewFragment extends Fragment {
             settings.setAllowUniversalAccessFromFileURLs(false);
         }
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
-        } else {
-            settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
-        }
-        settings.setLoadWithOverviewMode(false);
-        settings.setUseWideViewPort(true);
+
         settings.setDomStorageEnabled(true);
         settings.setNeedInitialFocus(true);
         settings.setDefaultTextEncodingName("utf-8"); //设置编码格式
@@ -164,7 +180,7 @@ public class WebViewFragment extends Fragment {
 
     private static class CustomWebViewClient extends WebViewClient {
 
-        private Context context;
+        protected Context context;
         private String mOriginUrl;
 
         private Handler mHandler;
@@ -253,6 +269,54 @@ public class WebViewFragment extends Fragment {
         }
     }
 
+    /**
+     * 该方案其实是忽略了证书校验，存在安全隐患
+     */
+    private static class UnSafeWebViewClient extends CustomWebViewClient {
+
+        public UnSafeWebViewClient(Context context, String originUrl, Listener listener) {
+            super(context, originUrl, listener);
+        }
+
+        @Override
+        public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+            handler.proceed();
+        }
+    }
+
+    public static class SafeWebViewClient extends CustomWebViewClient {
+
+        public SafeWebViewClient(Context context, String originUrl, Listener listener) {
+            super(context, originUrl, listener);
+        }
+
+        @Override
+        public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+            String url = view.getUrl();
+
+            OkHttpClient okHttpClient = OkHttpUtils.getInstance(context).getOkHttpClient();
+            Request request = new Request.Builder()
+                    .url(url)
+                    .build();
+
+            okHttpClient.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    handler.cancel();
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    if(response.isSuccessful()){
+                        handler.proceed();
+                    }else{
+                        handler.cancel();
+                    }
+                }
+            });
+        }
+    }
+
     private interface Listener {
         void onLoading();
 
@@ -261,7 +325,7 @@ public class WebViewFragment extends Fragment {
         void onSuccess();
     }
 
-    public interface WebViewListener{
+    public interface WebViewListener {
         void updateTitle(String title);
     }
 }

@@ -27,4 +27,11 @@
         android:textAllCaps="false"
         android:text="Launch Web View By Https"/>
 
+    <Button
+        android:id="@+id/launchBaiduBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAllCaps="false"
+        android:text="Launch www.baidu.com"/>
+
 </LinearLayout>

@@ -39,6 +39,13 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.launchHttpsBtn).setOnClickListener(v -> {
             WebViewActivity.launchWebView(this, "", SELF_SIGN_HTTPS_URL);
         });
+
+        /**
+         * 百度的证书是经过CA认证过，因此通过WebView显示时，无须做多余的处理.
+         */
+        findViewById(R.id.launchBaiduBtn).setOnClickListener(v -> {
+            WebViewActivity.launchWebView(this, "", "https://www.baidu.com");
+        });
     }
 
     public void getSelfSignServerData(View view){

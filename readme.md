@@ -36,6 +36,21 @@ assets目录下文件说明:
 	    keystoreFile="C:\Users\admin'pc\jackh_server.jks" keystorePass="123456"
 	    clientAuth="false" truststoreFile="C:\Users\admin'pc\jackh_client_for_server.jks" truststorePass="123456"/>
 ```
+
+#### Android WebView SSL 自签名安全校验解决方案
+
+    1、在App中需要通过WebView访问URL, 如果服务器采用的是自签名证书，而不是CA认证时
+    使用WebView加载URL的时候会显示为空白，出现无法加载网页的情况。
+    
+    2、使用CA认证的证书，在WebView则可以直接显示出来，不需要特殊出来
+    
+    针对自签名证书的解决方案（参考WebViewFragment）：
+        
+        1、继承WebViewClient且重写onReceivedSSLError方法，直接使用handler.proceed().该方案其实是忽略了证书校验，存在安全隐患
+        
+        2、安全的方案是当出现了证书问题的时候，读取 asserts 中保存的的根证书，然后与服务器校验，
+        假如通过了，继续执行 handler.proceed()，否则执行 handler.cancel()。
+    
     
 #### 参考资料
     
@@ -49,3 +64,5 @@ assets目录下文件说明:
 [Java 安全套接字编程以及 keytool 使用最佳实践](https://www.ibm.com/developerworks/cn/java/j-lo-socketkeytool/index.html?ca=drs)
     
 [Android安全开发之安全使用HTTPS](https://www.cnblogs.com/alisecurity/p/5939336.html)
+
+[Android Webview SSL 自签名安全校验解决方案](https://www.cnblogs.com/liyiran/p/7011317.html)
