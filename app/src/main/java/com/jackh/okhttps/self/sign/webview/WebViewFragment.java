@@ -80,6 +80,10 @@ public class WebViewFragment extends Fragment {
         mUrl = getArguments().getString(WebViewActivity.URL, "https://www.baidu.com");
 
         stateView = itemView.findViewById(R.id.state_view);
+        stateView.setOnRetryBtnClickListener(view -> {
+            webView.loadUrl(mUrl);
+            return null;
+        });
 
         webView = itemView.findViewById(R.id.web_view);
         webView.setWebChromeClient(new WebChromeClient() {
@@ -92,6 +96,9 @@ public class WebViewFragment extends Fragment {
             }
         });
         webView.setWebViewClient(new SafeWebViewClient(getContext(), mUrl, new Listener() {
+
+            private boolean loadFailure = false;
+
             @Override
             public void onLoading() {
                 stateView.showLoading();
@@ -99,12 +106,18 @@ public class WebViewFragment extends Fragment {
 
             @Override
             public void onFailure() {
+                loadFailure = true;
                 stateView.showError();
             }
 
             @Override
             public void onSuccess() {
-                stateView.showContent();
+                if(loadFailure){
+                    stateView.showError();
+                }else{
+                    stateView.showContent();
+                }
+                loadFailure = false;
             }
         }));
 
@@ -172,10 +185,6 @@ public class WebViewFragment extends Fragment {
         settings.setUserAgentString(settings.getUserAgentString() + ";zfb_app");
 
         webView.loadUrl(mUrl);
-        stateView.setOnRetryBtnClickListener(view -> {
-            webView.loadUrl(mUrl);
-            return null;
-        });
     }
 
     private static class CustomWebViewClient extends WebViewClient {
